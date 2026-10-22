@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import os
+from aiohttp import web
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -60,7 +62,26 @@ async def on_error(event: ErrorEvent, bot: Bot) -> bool:
     return True
 
 
+# --- Вебсервер для того, щоб Render не засинав ---
+async def handle_ping(request):
+    return web.Response(text="Bot is active and running!")
+
+async def start_web_server():
+    app = web.Application()
+    app.add_routes([web.get('/', handle_ping)])
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    port = int(os.environ.get("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    log.info(f"Вебсервер для keep-alive запущено на порті {port}")
+
+
 async def main() -> None:
+    # Запускаємо легкий вебсервер для Render у фоні
+    await start_web_server()
+
     await init_db()
     async with async_session() as session:
         await seed_initial_data(session)
